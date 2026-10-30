@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Titan Pipeline</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0e0c14; color: #f4f2f8;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #app { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 1.2vh 1vw; }
+
+  #top { height: 8vh; position: relative; }
+  #brand { position: absolute; left: 0; top: 0; height: 100%; }
+  #brand b { display: block; font-size: 3.4vh; line-height: 4.4vh; font-weight: 800; letter-spacing: .02em; }
+  #brand span { display: block; font-size: 2vh; line-height: 2.8vh; color: #a9a3b8; }
+  #kpis { position: absolute; left: 24%; right: 15%; top: 0; height: 100%; text-align: center; }
+  .kpi { display: inline-block; vertical-align: top; min-width: 11vw; padding: 0 1vw; }
+  .kpi b { display: block; font-size: 4.2vh; line-height: 4.8vh; font-weight: 800; }
+  .kpi span { display: block; font-size: 1.8vh; line-height: 2.4vh; color: #a9a3b8; }
+  .kpi.orange b { color: #f5bf32; } .kpi.red b { color: #ff6b5e; } .kpi.green b { color: #4ade80; }
+  #clock { position: absolute; right: 0; top: 0; text-align: right; }
+  #clock b { display: block; font-size: 3.8vh; line-height: 4.4vh; font-weight: 700; }
+  #clock span { display: block; font-size: 2vh; line-height: 2.8vh; color: #a9a3b8; }
+
+  #board { position: absolute; left: 1vw; right: 1vw; top: 9.6vh; bottom: 4.4vh; }
+  .col { position: absolute; top: 0; bottom: 0; background: #181522; border-radius: .8vh; overflow: hidden; }
+  .col.empty { background: #13111a; }
+  .head { height: 6.4vh; padding: .6vh .5vw 0; border-bottom: .4vh solid #5b3f86; position: relative; }
+  .head .name { font-weight: 700; font-size: 2vh; line-height: 2.5vh; padding-right: 3.4vh; overflow: hidden; }
+  .head .count { position: absolute; right: .5vw; top: .7vh; font-weight: 800; font-size: 3.4vh; line-height: 3.8vh; }
+  .col.empty .head { border-bottom-color: #2c2838; }
+  .col.empty .name { color: #6d6780; font-size: 1.7vh; line-height: 2.2vh; padding-right: 0; }
+  .tiles { position: absolute; top: 6.4vh; left: 0; right: 0; bottom: 0; padding: .3vw; }
+  .slot { float: left; padding: .25vw; }
+  .tile { height: 100%; background: #262133; border-radius: .6vh; border-left: .7vh solid #6d6780;
+    padding: .55em .6em; overflow: hidden; position: relative; }
+  .tile.inprogress { border-left-color: #38bdf8; background: #2b2a44; }
+  .tile.completed { border-left-color: #4ade80; background: #1d3129; }
+  .tile.late { box-shadow: inset 0 0 0 .25vh #ff6b5e; }
+  .client { font-weight: 700; font-size: 1.22em; line-height: 1.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .client.long { font-size: 1em; line-height: 1.525em; }
+  .job { font-size: 1em; line-height: 1.2em; max-height: 2.4em; overflow: hidden; color: #d6d1e2; margin-top: .15em; }
+  .foot { position: absolute; left: .6em; right: .4em; bottom: .5em; white-space: nowrap; overflow: hidden; }
+  .pill { display: inline-block; font-size: .78em; line-height: 1.5em; padding: 0 .55em; border-radius: 1em; font-weight: 700; margin-right: .35em; vertical-align: middle; }
+  .stat { font-size: .78em; font-weight: 700; color: #a9a3b8; margin-right: .5em; vertical-align: middle; }
+  .inprogress .stat { color: #7dd3fc; } .completed .stat { color: #86efac; }
+  .date { font-size: .78em; font-weight: 700; color: #d6d1e2; vertical-align: middle; }
+  .date.over { color: #ff8a80; }
+  .pay-pending-deposit { background: #f5bf32; color: #47381f; }
+  .pay-deposit-paid { background: #0a53a8; color: #bfe0f6; }
+  .pay-pending-final-payment { background: #b10202; color: #ffcfc9; }
+  .pay-paid-in-full { background: #11734b; color: #d4edbc; }
+  .pay-none { background: #3a3548; color: #d6d1e2; }
+
+  #legend { position: absolute; left: 1vw; right: 1vw; bottom: .9vh; height: 2.8vh; font-size: 1.7vh; line-height: 2.8vh; color: #a9a3b8; white-space: nowrap; overflow: hidden; }
+  #legend .pill { font-size: 1.5vh; }
+  .bar { display: inline-block; width: .7vh; height: 1.9vh; vertical-align: middle; margin: 0 .4vh 0 1.4vh; background: #6d6780; }
+  #alert { display: none; position: absolute; right: 1vw; bottom: .7vh; background: #b10202; color: #fff; font-weight: 700; font-size: 1.9vh; line-height: 3vh; padding: 0 1vw; border-radius: .5vh; }
+  #msg { position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 3.2vh; color: #a9a3b8; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div id="brand"><b>TITAN TINT &amp; WRAPS</b><span>Wrap pipeline</span></div>
+    <div id="kpis"></div>
+    <div id="clock"><b id="time"></b><span id="day"></span></div>
+  </div>
+  <div id="board"><div id="msg">Loading the sheet&hellip;</div></div>
+  <div id="legend">
+    <span class="bar"></span>Not started
+    <span class="bar" style="background:#38bdf8"></span>In progress
+    <span class="bar" style="background:#4ade80"></span>Completed
+    &nbsp;&nbsp;&nbsp;
+    <span class="pill pay-pending-deposit">Pending Deposit</span>
+    <span class="pill pay-deposit-paid">Deposit Paid</span>
+    <span class="pill pay-pending-final-payment">Final Payment Due</span>
+    <span class="pill pay-paid-in-full">Paid in Full</span>
+  </div>
+  <div id="alert"></div>
+</div>
+
+<script>
+// Plain ES5 on purpose: TV browsers are often years out of date.
+var SHEET_ID = '13FsYhdH7eMxkmtG3-3Jk9SI7djvOvNH4INaMjDLM1rs';
+var TAB = 'Pending Wraps';
+var REFRESH_MS = 60000;
+var RELOAD_MS = 6 * 60 * 60 * 1000; // full page reload, clears any TV browser memory creep
+
+// Left to right. "match" is the sheet's dropdown text, lowercased.
+var STAGES = [
+  { name: 'Initial Design', match: ['intial design', 'initial design'] },
+  { name: 'Design Revisions', match: ['design revisions'] },
+  { name: 'Artwork Approval', match: ['artwork approval'] },
+  { name: 'Printing', match: ['printing'] },
+  { name: 'Outgassing', match: ['outgasing', 'outgassing'] },
+  { name: 'Install', match: ['install'] }
+];
+var DEFAULT_COLS = { client: 0, job: 1, pay: 2, stage: 3, status: 4, begin: 5, due: 6 };
+var HEADERS = { 'client': 'client', 'vehicle/job': 'job', 'payment status': 'pay', 'stage': 'stage',
+  'status': 'status', 'begin date': 'begin', 'expected completion date': 'due' };
+
+var lastGood = 0, lastRows = null;
+
+function $(id) { return document.getElementById(id); }
+function clean(s) { return String(s === null || s === undefined ? '' : s).replace(/\s+/g, ' ').replace(/^ | $/g, ''); }
+function esc(s) { return clean(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function slug(s) { return clean(s).toLowerCase().replace(/[^a-z]+/g, '-'); }
+
+function parseDate(s) {
+  var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(clean(s));
+  return m ? new Date(+m[3], +m[1] - 1, +m[2]) : null;
+}
+function shortDate(d) {
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate();
+}
+
+// The feed comes back with no header handling (headers=0) because Sheets otherwise
+// swallows rows into the header when a column mixes dates and words like "Ongoing".
+function rowsFromTable(table) {
+  var cols = DEFAULT_COLS, jobs = [], i, c, k, cells, val;
+  function cell(n) { var x = cells[n]; return x ? clean(x.f !== undefined && x.f !== null ? x.f : x.v) : ''; }
+  for (i = 0; i < table.rows.length; i++) {
+    cells = table.rows[i].c;
+    if (cell(0).toLowerCase() === 'client') {
+      cols = {};
+      for (c = 0; c < cells.length; c++) {
+        k = HEADERS[cell(c).toLowerCase()];
+        if (k) cols[k] = c;
+      }
+      continue;
+    }
+    val = { client: cell(cols.client), job: cell(cols.job), pay: cell(cols.pay), stage: cell(cols.stage),
+            status: cell(cols.status), begin: cell(cols.begin), due: cell(cols.due) };
+    if (val.client || val.job) jobs.push(val);
+  }
+  return jobs;
+}
+
+function tileHtml(j, today) {
+  var st = slug(j.status).replace(/-/g, ''), done = st === 'completed';
+  var due = parseDate(j.due), begin = parseDate(j.begin);
+  var late = due && due < today && !done;
+  var date = '';
+  if (late) date = '<span class="date over">LATE: due ' + shortDate(due) + '</span>';
+  else if (due && !done) date = '<span class="date">Due ' + shortDate(due) + '</span>';
+  else if (begin && begin >= today && !done) date = '<span class="date">Starts ' + shortDate(begin) + '</span>';
+  var pays = clean(j.pay) ? j.pay.split(',') : [], pills = '', p;
+  for (p = 0; p < pays.length; p++) {
+    pills += '<span class="pill pay-' + slug(pays[p]).replace(/^-|-$/g, '') + '">' + esc(pays[p]).replace('Pending Final Payment', 'Final Payment Due') + '</span>';
+  }
+  if (!pills) pills = '<span class="pill pay-none">No payment status</span>';
+  return '<div class="tile ' + st + (late ? ' late' : '') + '">' +
+    '<div class="client' + (clean(j.client).length > 24 ? ' long' : '') + '">' + esc(j.client) + '</div>' +
+    '<div class="job">' + esc(j.job) + '</div>' +
+    '<div class="foot">' + pills + (date && st === 'notstarted' ? '' : '<span class="stat">' + esc(j.status || 'No status') + '</span>') + date + '</div>' +
+    '</div>';
+}
+
+function render(jobs) {
+  lastRows = jobs;
+  var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var cols = [], i, s, m, placed;
+  for (i = 0; i < STAGES.length; i++) cols.push({ name: STAGES[i].name, match: STAGES[i].match, jobs: [] });
+  var other = { name: 'No Stage', match: [], jobs: [] };
+  for (i = 0; i < jobs.length; i++) {
+    placed = false;
+    for (s = 0; s < cols.length && !placed; s++) {
+      for (m = 0; m < cols[s].match.length; m++) {
+        if (clean(jobs[i].stage).toLowerCase() === cols[s].match[m]) { cols[s].jobs.push(jobs[i]); placed = true; break; }
+      }
+    }
+    if (!placed) other.jobs.push(jobs[i]); // a typo in the sheet must never hide a job
+  }
+  if (other.jobs.length) cols.push(other);
+
+  renderKpis(jobs, today);
+
+  // Pick how many rows of tiles to use: the choice that gives the largest readable text.
+  var board = $('board'), W = board.clientWidth, H = board.clientHeight;
+  var vh = window.innerHeight / 100, vw = window.innerWidth / 100;
+  var gap = 0.5 * vw, headH = 6.4 * vh, padY = 0.6 * vw + 0.1 * vh;
+  var emptyW = 6.6 * vw, empties = 0, bestR = 1, bestF = 0, R, U, c, f, h, w;
+  for (i = 0; i < cols.length; i++) if (!cols[i].jobs.length) empties++;
+  var tileRoom = W - gap * (cols.length - 1) - empties * emptyW;
+  for (R = 1; R <= 40; R++) {
+    U = 0;
+    for (i = 0; i < cols.length; i++) U += Math.ceil(cols[i].jobs.length / R);
+    w = tileRoom / Math.max(U, 1) - 0.6 * vw;
+    h = (H - headH - padY) / R;
+    f = Math.min(h / 7.2, w / 17.5);
+    if (f > bestF + 0.01) { bestF = f; bestR = R; }
+  }
+  bestF = Math.min(bestF, 3.1 * vh);
+
+  U = 0;
+  for (i = 0; i < cols.length; i++) {
+    cols[i].across = Math.ceil(cols[i].jobs.length / bestR);
+    U += cols[i].across;
+  }
+  var unit = tileRoom / Math.max(U, 1), left = 0, html = '';
+  for (i = 0; i < cols.length; i++) {
+    c = cols[i];
+    var colW = c.jobs.length ? unit * c.across : emptyW;
+    html += '<div class="col' + (c.jobs.length ? '' : ' empty') + '" style="left:' + left.toFixed(1) + 'px;width:' + colW.toFixed(1) + 'px">' +
+      '<div class="head"><div class="name">' + esc(c.name) + '</div>' + (c.jobs.length ? '<div class="count">' + c.jobs.length + '</div>' : '') + '</div><div class="tiles">';
+    for (s = 0; s < c.jobs.length; s++) {
+      html += '<div class="slot" style="width:' + (100 / c.across).toFixed(3) + '%;height:' + (100 / bestR).toFixed(3) + '%;font-size:' + bestF.toFixed(1) + 'px">' +
+        tileHtml(c.jobs[s], today) + '</div>';
+    }
+    html += '</div></div>';
+    left += colW + gap;
+  }
+  board.innerHTML = html;
+}
+
+function renderKpis(jobs, today) {
+  var active = 0, working = 0, dep = 0, fin = 0, late = 0, i, j, due, st, pay;
+  for (i = 0; i < jobs.length; i++) {
+    j = jobs[i]; st = clean(j.status).toLowerCase(); pay = clean(j.pay).toLowerCase(); due = parseDate(j.due);
+    if (st !== 'completed') active++;
+    if (st === 'in progress') working++;
+    if (pay.indexOf('pending deposit') > -1) dep++;
+    if (pay.indexOf('pending final') > -1) fin++;
+    if (due && due < today && st !== 'completed') late++;
+  }
+  function k(n, label, cls) { return '<div class="kpi ' + (n ? cls : '') + '"><b>' + n + '</b><span>' + label + '</span></div>'; }
+  $('kpis').innerHTML = k(active, 'Open jobs', '') + k(working, 'In progress', '') +
+    k(dep, 'Pending deposit', 'orange') + k(fin, 'Final payment due', 'red') + k(late, 'Late', 'red');
+}
+
+function tick() {
+  var d = new Date(), h = d.getHours(), mm = d.getMinutes();
+  $('time').innerHTML = (h % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + ' ' + (h < 12 ? 'AM' : 'PM');
+  $('day').innerHTML = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()] + ', ' + shortDate(d);
+  // If the sheet stops answering, say so instead of quietly showing old jobs.
+  var a = $('alert');
+  if (lastGood && d.getTime() - lastGood > 5 * 60000) {
+    a.style.display = 'block';
+    a.innerHTML = 'NOT UPDATING: last good read ' + Math.round((d.getTime() - lastGood) / 60000) + ' min ago';
+  } else {
+    a.style.display = 'none';
+  }
+}
+
+window.titanData = function (resp) {
+  if (!resp || resp.status !== 'ok' || !resp.table) return;
+  lastGood = new Date().getTime();
+  render(rowsFromTable(resp.table));
+  tick();
+};
+
+function load() {
+  var old = $('feed');
+  if (old) old.parentNode.removeChild(old);
+  var s = document.createElement('script');
+  s.id = 'feed';
+  s.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?headers=0&range=A1:H947' +
+    '&sheet=' + encodeURIComponent(TAB) + '&tqx=' + encodeURIComponent('out:json;responseHandler:titanData') +
+    '&cb=' + new Date().getTime();
+  s.onerror = function () { if (!lastGood) $('board').innerHTML = '<div id="msg">Cannot reach the sheet. Check the internet and that link sharing is still on.</div>'; };
+  document.body.appendChild(s);
+}
+
+window.onresize = function () { if (lastRows) render(lastRows); };
+tick();
+load();
+setInterval(load, REFRESH_MS);
+setInterval(tick, 15000);
+setTimeout(function () { window.location.reload(); }, RELOAD_MS);
+</script>
+</body>
+</html>
